@@ -74,12 +74,16 @@ export async function generate(modelId, body) {
   const allowedCriteria = criteria.join(", ");
   const recommendation = await askModel(
     modelId,
-    `You are a decision advisor. You will be told exactly which option has the highest total score — you MUST recommend that exact option and no other. The ONLY criteria that exist are: ${allowedCriteria}. Never mention any criterion outside that exact list. Write 2-3 sentences explaining why the winner comes out ahead, citing its actual per-criterion scores given below, framed as a lean ('X seems like the strongest choice because...'), not a command.`,
+    `You are a decision advisor. You will be told exactly which option has the highest total score — you MUST recommend that exact option and no other. The ONLY criteria that exist are: ${allowedCriteria}. Never mention any criterion outside that exact list. Write ONE single paragraph of 2-3 sentences (no headers, no repeated labels) explaining why the winner comes out ahead, citing its actual per-criterion scores given below. Sound like a suggestion, not a command — e.g. start with something like "X seems like the strongest choice because..."`,
     `Options and scores (1-10 per criterion):\n${summaryLines}\n\nWINNER (highest total, you must recommend this one): ${winner.option} (total ${winner.total})\nRunner-up: ${runnerUp.option} (total ${runnerUp.total})\n\nExplain why ${winner.option} comes out ahead, using only these criteria: ${allowedCriteria}.`,
     { temperature: 0.3, maxTokens: 160 }
   );
 
-  let cleanRec = recommendation.replace(/^(here'?s|here is)[^:\n]*:\s*/i, "").trim();
+  let cleanRec = recommendation
+    .replace(/^(here'?s|here is)[^:\n]*:\s*/i, "")
+    .replace(/^lean\s*:\s*/gim, "")
+    .split(/\n\s*\n/)[0]
+    .trim();
   const mentionsWinner = cleanRec.toLowerCase().includes(winner.option.toLowerCase().slice(0, 12));
   const mentionsOther = options.some(
     (o) => o !== winner.option && cleanRec.toLowerCase().includes(o.toLowerCase()) && !cleanRec.toLowerCase().includes(winner.option.toLowerCase())
